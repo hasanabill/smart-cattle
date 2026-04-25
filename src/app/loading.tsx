@@ -1,7 +1,13 @@
 export default function Loading() {
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
-      <p className="text-slate-600">Loading cattle health dashboard...</p>
-    </main>
+    <div className="flex flex-col gap-6">
+      <div className="h-8 w-48 animate-pulse rounded-lg bg-slate-200" />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-24 animate-pulse rounded-xl bg-slate-200" />
+        ))}
+      </div>
+      <div className="h-64 animate-pulse rounded-xl bg-slate-200" />
+    </div>
   );
 }

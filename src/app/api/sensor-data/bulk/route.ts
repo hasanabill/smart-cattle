@@ -7,10 +7,48 @@ import {
   MAX_BULK_SENSOR_READINGS,
   sensorBulkPayloadSchema,
 } from "@/lib/validation/sensor";
+import { Types } from "mongoose";
 import { z } from "zod";
+
+const MAX_BULK_DELETE_IDS = 10_000;
+
+type BulkDeletePayload = {
+  ids?: unknown[];
+  readingIds?: unknown[];
+  readings?: Array<{ _id?: unknown }>;
+};
 
 function resolvePacketTimestamp(timestampMs?: number) {
   return timestampMs ? new Date(Date.now() - timestampMs) : new Date();
+}
+
+function normalizeMongoId(value: unknown): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value && typeof value === "object" && "$oid" in value) {
+    const oid = (value as { $oid?: unknown }).$oid;
+    return typeof oid === "string" ? oid : null;
+  }
+
+  return null;
+}
+
+function extractBulkDeleteIds(payload: BulkDeletePayload) {
+  const rawIds = [
+    ...(payload.ids ?? []),
+    ...(payload.readingIds ?? []),
+    ...(payload.readings ?? []).map((reading) => reading._id),
+  ];
+
+  const normalizedIds = rawIds
+    .map(normalizeMongoId)
+    .filter((id): id is string => typeof id === "string");
+
+  return Array.from(new Set(normalizedIds)).filter((id) =>
+    Types.ObjectId.isValid(id),
+  );
 }
 
 export async function POST(request: Request) {
@@ -156,5 +194,73 @@ export async function POST(request: Request) {
     }
 
     return fail("Failed to ingest bulk sensor data.", 500, String(error));
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const payload = (await request.json()) as BulkDeletePayload;
+    const ids = extractBulkDeleteIds(payload);
+
+    if (ids.length === 0) {
+      return fail(
+        "No valid MongoDB reading IDs provided. Send { ids: [\"...\"] } or { readings: [{ _id: { $oid: \"...\" } }] }.",
+        422,
+      );
+    }
+
+    if (ids.length > MAX_BULK_DELETE_IDS) {
+      return fail(
+        `Too many IDs. Maximum bulk delete size is ${MAX_BULK_DELETE_IDS}.`,
+        413,
+      );
+    }
+
+    await connectToDatabase();
+
+    const objectIds = ids.map((id) => new Types.ObjectId(id));
+    const readingsToDelete = await SensorReadingModel.find({
+      _id: { $in: objectIds },
+    })
+      .select({ _id: 1, cowId: 1 })
+      .lean()
+      .exec();
+
+    const affectedCowIds = Array.from(
+      new Set(readingsToDelete.map((reading) => String(reading.cowId))),
+    );
+
+    const [anomalyDeleteResult, readingDeleteResult] = await Promise.all([
+      AnomalyEventModel.deleteMany({ relatedReadingId: { $in: objectIds } }),
+      SensorReadingModel.deleteMany({ _id: { $in: objectIds } }),
+    ]);
+
+    if (affectedCowIds.length > 0) {
+      await Promise.all(
+        affectedCowIds.map(async (cowId) => {
+          const latestReading = await SensorReadingModel.findOne({ cowId })
+            .sort({ timestamp: -1 })
+            .select({ derivedStatus: 1 })
+            .lean()
+            .exec();
+
+          await CowModel.findOneAndUpdate(
+            { cowId },
+            { $set: { status: latestReading?.derivedStatus ?? "normal" } },
+          );
+        }),
+      );
+    }
+
+    return ok({
+      requestedIds: ids.length,
+      matchedReadings: readingsToDelete.length,
+      deletedReadings: readingDeleteResult.deletedCount,
+      deletedAnomalies: anomalyDeleteResult.deletedCount,
+      refreshedCows: affectedCowIds.length,
+      maxBatchSize: MAX_BULK_DELETE_IDS,
+    });
+  } catch (error) {
+    return fail("Failed to delete bulk sensor readings.", 500, String(error));
   }
 }

@@ -4,18 +4,28 @@ type Props = {
   severity: AnomalySeverity;
 };
 
-const severityClassMap: Record<AnomalySeverity, string> = {
-  low: "bg-sky-100 text-sky-800",
-  medium: "bg-amber-100 text-amber-800",
-  high: "bg-rose-100 text-rose-800",
+const config: Record<AnomalySeverity, { label: string; classes: string }> = {
+  low: {
+    label: "Low",
+    classes: "bg-sky-50 text-sky-700 ring-1 ring-sky-200",
+  },
+  medium: {
+    label: "Medium",
+    classes: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
+  },
+  high: {
+    label: "High",
+    classes: "bg-rose-50 text-rose-700 ring-1 ring-rose-200",
+  },
 };
 
 export function SeverityBadge({ severity }: Props) {
+  const c = config[severity];
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${severityClassMap[severity]}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${c.classes}`}
     >
-      {severity}
+      {c.label}
     </span>
   );
 }

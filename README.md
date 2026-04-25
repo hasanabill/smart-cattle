@@ -148,6 +148,34 @@ Example payload:
 }
 ```
 
+### `DELETE /api/sensor-data/bulk`
+Bulk delete endpoint for MongoDB sensor reading IDs. It deletes matching readings, deletes related anomaly events, and refreshes affected cow statuses.
+
+Simple ID payload:
+```json
+{
+  "ids": [
+    "662a1d5ad0c7b3a86e200001",
+    "662a1d5ad0c7b3a86e200002"
+  ]
+}
+```
+
+MongoDB export-style payload is also supported:
+```json
+{
+  "readings": [
+    {
+      "_id": {
+        "$oid": "662a1d5ad0c7b3a86e200001"
+      }
+    }
+  ]
+}
+```
+
+Note: the generated `synthetic-data/synthetic-bulk-*.json` files do not contain MongoDB `_id` values before upload. To delete by ID after upload, copy `_id` values from MongoDB Atlas, Compass, or an exported `sensorreadings` JSON.
+
 ### `GET /api/readings/recent?limit=30`
 Returns recent sensor readings.
 
