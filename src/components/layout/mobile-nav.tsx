@@ -2,11 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, AlertTriangle, BrainCircuit, LayoutDashboard, Rss } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  BrainCircuit,
+  CalendarDays,
+  LayoutDashboard,
+  Rss,
+} from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/cows", label: "Cows", icon: Rss },
+  { href: "/daily-reports", label: "Daily", icon: CalendarDays },
   { href: "/anomalies", label: "Anomalies", icon: AlertTriangle },
   { href: "/ml-reports", label: "ML", icon: BrainCircuit },
 ];

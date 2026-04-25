@@ -12,6 +12,7 @@ export interface PredictionResult {
 type ReadingForPrediction = {
   temperatureC: number;
   activityIndex: number;
+  vibrationValue?: number;
   vibrationCount: number;
   timestamp: Date | string;
 };

@@ -3,10 +3,16 @@ import { connectToDatabase } from "@/lib/db";
 import {
   AnomalyEventModel,
   CowModel,
+  DailyHealthReportModel,
   MLReportModel,
   SensorReadingModel,
 } from "@/lib/models";
 import { summarizeLatestHealth } from "@/lib/utils/anomaly";
+import {
+  buildDailyHealthReport,
+  getDateKey,
+  getDateRangeFromKey,
+} from "@/lib/utils/daily-health";
 import type { DashboardSummary } from "@/types";
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
@@ -89,4 +95,67 @@ export async function getMLReports(limit = 20) {
     .limit(limit)
     .lean()
     .exec();
+}
+
+export async function getDailyHealthReports({
+  cowId,
+  dateKey,
+  limit = 50,
+}: {
+  cowId?: string;
+  dateKey?: string;
+  limit?: number;
+} = {}) {
+  await connectToDatabase();
+  const filter: Record<string, string> = {};
+  if (cowId) filter.cowId = cowId;
+  if (dateKey) filter.dateKey = dateKey;
+
+  return DailyHealthReportModel.find(filter)
+    .sort({ date: -1, cowId: 1 })
+    .limit(limit)
+    .lean()
+    .exec();
+}
+
+export async function generateDailyHealthReports(dateKey = getDateKey()) {
+  await connectToDatabase();
+  const { start, end } = getDateRangeFromKey(dateKey);
+
+  const cowIds = await SensorReadingModel.distinct("cowId", {
+    timestamp: { $gte: start, $lte: end },
+  });
+
+  const generatedReports = [];
+
+  for (const cowId of cowIds) {
+    const readings = await SensorReadingModel.find({
+      cowId,
+      timestamp: { $gte: start, $lte: end },
+    })
+      .sort({ timestamp: 1 })
+      .lean()
+      .exec();
+
+    if (readings.length === 0) continue;
+
+    const report = buildDailyHealthReport({
+      cowId,
+      dateKey,
+      date: start,
+      readings,
+    });
+
+    const savedReport = await DailyHealthReportModel.findOneAndUpdate(
+      { cowId, dateKey },
+      { $set: report },
+      { upsert: true, new: true },
+    )
+      .lean()
+      .exec();
+
+    generatedReports.push(savedReport);
+  }
+
+  return generatedReports;
 }

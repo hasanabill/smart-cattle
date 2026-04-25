@@ -1,15 +1,16 @@
 export const HEALTH_THRESHOLDS = {
   temperature: {
-    warningHighC: 32.5,
-    anomalyHighC: 33.2,
+    warningHighC: 35.3,
+    anomalyHighC: 36.0,
   },
   activity: {
-    warningLow: 0.01,
-    anomalyLow: 0.004,
+    warningLow: 0.06,
+    anomalyLow: 0.03,
     inactivityWindowReadings: 5,
   },
   vibration: {
-    warningLowCount: 2,
+    warningLowValue: 1,
+    warningLowCount: 0,
     anomalyLowCount: 0,
   },
 } as const;

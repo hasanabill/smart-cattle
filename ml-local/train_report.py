@@ -17,23 +17,35 @@ from sklearn.metrics import (
 from sklearn.model_selection import train_test_split
 
 
+# Daily aggregate features (flattened) produced by Next.js + stored in MongoDB.
 FEATURE_COLUMNS = [
-    "temperatureC",
-    "activityIndex",
-    "vibrationValue",
-    "vibrationCount",
-    "wifiRssi",
-    "rawAccelX",
-    "rawAccelY",
-    "rawAccelZ",
-    "rawGyroX",
-    "rawGyroY",
-    "rawGyroZ",
-    "accelMagnitude",
-    "gyroMagnitude",
+    "totalReadings",
+    "expectedReadings",
+    "dataCompletenessPct",
+    "temperatureAvgC",
+    "temperatureMinC",
+    "temperatureMaxC",
+    "temperatureStdC",
+    "temperatureElevatedMinutes",
+    "temperatureHighMinutes",
+    "activityAvgIndex",
+    "activityMinIndex",
+    "activityMaxIndex",
+    "activityStdIndex",
+    "activityLowActivityMinutes",
+    "activityActiveMinutes",
+    "vibrationAvgValue",
+    "vibrationAvgCount",
+    "vibrationLowSignalMinutes",
+    "vibrationRuminationSignalScore",
+    "wifiAvgRssi",
+    "wifiWeakSignalMinutes",
+    "wifiQualityScore",
+    "healthScore",
+    "dateOrdinal",
 ]
 
-LABEL_COLUMN = "derivedStatus"
+LABEL_COLUMN = "dailyStatus"
 MODEL_DIR = Path(__file__).parent / "models"
 
 
@@ -47,58 +59,96 @@ def get_database_name(uri: str) -> str:
     return path
 
 
-def fetch_readings():
-    load_dotenv()
-    mongo_uri = os.environ.get("MONGODB_URI")
-    if not mongo_uri:
-        raise RuntimeError("Missing MONGODB_URI in .env or environment.")
-
-    client = MongoClient(mongo_uri)
-    db = client[get_database_name(mongo_uri)]
+def load_daily_readings_dataframe(db) -> pd.DataFrame:
 
     projection = {
         "_id": 0,
         "cowId": 1,
-        "timestamp": 1,
-        "temperatureC": 1,
-        "activityIndex": 1,
-        "vibrationValue": 1,
-        "vibrationCount": 1,
-        "wifiRssi": 1,
-        "rawAccelX": 1,
-        "rawAccelY": 1,
-        "rawAccelZ": 1,
-        "rawGyroX": 1,
-        "rawGyroY": 1,
-        "rawGyroZ": 1,
-        "derivedStatus": 1,
+        "dateKey": 1,
+        "date": 1,
+        "totalReadings": 1,
+        "expectedReadings": 1,
+        "dataCompletenessPct": 1,
+        "temperature": 1,
+        "activity": 1,
+        "vibration": 1,
+        "wifi": 1,
+        "healthScore": 1,
+        "dailyStatus": 1,
     }
 
-    readings = list(db.sensorreadings.find({}, projection).sort("timestamp", 1))
-    return client, db, pd.DataFrame(readings)
+    # Mongoose default collection is lowercased plural: dailyhealthreports
+    daily_reports = list(db.dailyhealthreports.find({}, projection).sort("date", 1))
+    return pd.DataFrame(daily_reports)
+
+
+def flatten_daily_report(row: dict) -> dict:
+    date_value = row.get("date")
+    if isinstance(date_value, str):
+        date_parsed = datetime.fromisoformat(date_value.replace("Z", "+00:00"))
+    elif isinstance(date_value, datetime):
+        date_parsed = date_value
+    else:
+        date_parsed = datetime.now(timezone.utc)
+
+    temp = row.get("temperature", {}) or {}
+    act = row.get("activity", {}) or {}
+    vib = row.get("vibration", {}) or {}
+    wifi = row.get("wifi", {}) or {}
+
+    return {
+        "totalReadings": float(row.get("totalReadings", 0)),
+        "expectedReadings": float(row.get("expectedReadings", 0)),
+        "dataCompletenessPct": float(row.get("dataCompletenessPct", 0)),
+        "temperatureAvgC": float(temp.get("avgC", 0)),
+        "temperatureMinC": float(temp.get("minC", 0)),
+        "temperatureMaxC": float(temp.get("maxC", 0)),
+        "temperatureStdC": float(temp.get("stdC", 0)),
+        "temperatureElevatedMinutes": float(temp.get("elevatedMinutes", 0)),
+        "temperatureHighMinutes": float(temp.get("highMinutes", 0)),
+        "activityAvgIndex": float(act.get("avgIndex", 0)),
+        "activityMinIndex": float(act.get("minIndex", 0)),
+        "activityMaxIndex": float(act.get("maxIndex", 0)),
+        "activityStdIndex": float(act.get("stdIndex", 0)),
+        "activityLowActivityMinutes": float(act.get("lowActivityMinutes", 0)),
+        "activityActiveMinutes": float(act.get("activeMinutes", 0)),
+        "vibrationAvgValue": float(vib.get("avgValue", 0)),
+        "vibrationAvgCount": float(vib.get("avgCount", 0)),
+        "vibrationLowSignalMinutes": float(vib.get("lowSignalMinutes", 0)),
+        "vibrationRuminationSignalScore": float(
+            vib.get("ruminationSignalScore", 0)
+        ),
+        "wifiAvgRssi": float(wifi.get("avgRssi", 0)),
+        "wifiWeakSignalMinutes": float(wifi.get("weakSignalMinutes", 0)),
+        "wifiQualityScore": float(wifi.get("qualityScore", 0)),
+        "healthScore": float(row.get("healthScore", 0)),
+        "dateOrdinal": float(date_parsed.toordinal()),
+    }
 
 
 def prepare_dataset(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
 
-    df = df.dropna(subset=FEATURE_COLUMNS[:-2] + [LABEL_COLUMN]).copy()
-    df.loc[:, "accelMagnitude"] = (
-        df["rawAccelX"] ** 2 + df["rawAccelY"] ** 2 + df["rawAccelZ"] ** 2
-    ) ** 0.5
-    df.loc[:, "gyroMagnitude"] = (
-        df["rawGyroX"] ** 2 + df["rawGyroY"] ** 2 + df["rawGyroZ"] ** 2
-    ) ** 0.5
+    flattened = []
+    for record in df.to_dict(orient="records"):
+        flat = flatten_daily_report(record)
+        flat["cowId"] = record.get("cowId")
+        flat["dateKey"] = record.get("dateKey")
+        flat["dailyStatus"] = record.get("dailyStatus")
+        flattened.append(flat)
 
-    return df[df[LABEL_COLUMN].isin(["normal", "warning", "anomaly"])]
+    prepared = pd.DataFrame(flattened)
+    prepared = prepared.dropna(subset=FEATURE_COLUMNS + [LABEL_COLUMN])
+    return prepared[prepared[LABEL_COLUMN].isin(["good", "watch", "bad"])]
 
 
 def build_failed_report(reason: str, total_rows: int):
     now = datetime.now(timezone.utc)
     return {
-        "reportId": f"local-rf-{uuid4()}",
+        "reportId": f"local-rf-daily-{uuid4()}",
         "modelName": "Random Forest",
-        "modelVersion": "local-rf-v1",
+        "modelVersion": "local-rf-daily-v1",
         "status": "failed",
         "trainingStartedAt": now,
         "trainingCompletedAt": now,
@@ -109,7 +159,7 @@ def build_failed_report(reason: str, total_rows: int):
             "cowCount": 0,
             "dateFrom": None,
             "dateTo": None,
-            "labelSource": "rule_based_derived_status",
+            "labelSource": "daily_rule_dailyStatus",
         },
         "metrics": {
             "accuracy": 0,
@@ -129,15 +179,16 @@ def train_and_save_report(db, df: pd.DataFrame):
     started_at = datetime.now(timezone.utc)
     prepared = prepare_dataset(df)
 
-    if len(prepared) < 30:
+    if len(prepared) < 10:
         return build_failed_report(
-            "Not enough valid labeled readings. Collect at least 30 readings first.",
+            "Not enough valid daily health reports. Generate daily reports for more dates first "
+            "(`POST /api/daily-reports`) and aim for at least 10 day-level rows.",
             len(df),
         )
 
     if prepared[LABEL_COLUMN].nunique() < 2:
         return build_failed_report(
-            "Need at least two status classes to train a classifier.",
+            "Need at least two daily status classes to train a classifier.",
             len(prepared),
         )
 
@@ -154,7 +205,7 @@ def train_and_save_report(db, df: pd.DataFrame):
     )
 
     model = RandomForestClassifier(
-        n_estimators=150,
+        n_estimators=200,
         random_state=42,
         class_weight="balanced",
         max_depth=None,
@@ -173,8 +224,8 @@ def train_and_save_report(db, df: pd.DataFrame):
     matrix = confusion_matrix(y_test, predictions, labels=labels)
 
     MODEL_DIR.mkdir(exist_ok=True)
-    model_path = MODEL_DIR / "random_forest_latest.joblib"
-    joblib.dump({"model": model, "features": FEATURE_COLUMNS}, model_path)
+    model_path = MODEL_DIR / "random_forest_daily_latest.joblib"
+    joblib.dump({"model": model, "features": FEATURE_COLUMNS, "label": "dailyStatus"}, model_path)
 
     completed_at = datetime.now(timezone.utc)
     importances = sorted(
@@ -200,9 +251,9 @@ def train_and_save_report(db, df: pd.DataFrame):
         )
 
     report = {
-        "reportId": f"local-rf-{uuid4()}",
+        "reportId": f"local-rf-daily-{uuid4()}",
         "modelName": "Random Forest",
-        "modelVersion": "local-rf-v1",
+        "modelVersion": "local-rf-daily-v1",
         "status": "completed",
         "trainingStartedAt": started_at,
         "trainingCompletedAt": completed_at,
@@ -211,9 +262,9 @@ def train_and_save_report(db, df: pd.DataFrame):
             "trainingRows": int(len(x_train)),
             "testRows": int(len(x_test)),
             "cowCount": int(prepared["cowId"].nunique()),
-            "dateFrom": prepared["timestamp"].min(),
-            "dateTo": prepared["timestamp"].max(),
-            "labelSource": "rule_based_derived_status",
+            "dateFrom": prepared["dateKey"].min(),
+            "dateTo": prepared["dateKey"].max(),
+            "labelSource": "daily_rule_dailyStatus",
         },
         "metrics": {
             "accuracy": float(accuracy_score(y_test, predictions)),
@@ -227,9 +278,9 @@ def train_and_save_report(db, df: pd.DataFrame):
         },
         "featureImportances": importances,
         "notes": [
-            "Local Random Forest report generated from MongoDB sensor readings.",
-            "Labels are based on current rule-derived status, not veterinarian diagnosis.",
-            f"Saved latest model artifact to {model_path}.",
+            "Local Random Forest report generated from MongoDB `dailyhealthreports` (daily aggregate features).",
+            "Label is `dailyStatus` (good, watch, bad) from daily rule-based analysis, not a veterinarian diagnosis.",
+            f"Saved latest daily model artifact to {model_path}.",
         ],
         "createdAt": completed_at,
         "updatedAt": completed_at,
@@ -240,15 +291,22 @@ def train_and_save_report(db, df: pd.DataFrame):
 
 
 def main():
-    client, db, df = fetch_readings()
+    load_dotenv()
+    mongo_uri = os.environ.get("MONGODB_URI")
+    if not mongo_uri:
+        raise RuntimeError("Missing MONGODB_URI in .env or environment.")
+
+    client = MongoClient(mongo_uri)
     try:
+        db = client[get_database_name(mongo_uri)]
+        df = load_daily_readings_dataframe(db)
         report = train_and_save_report(db, df)
         if report["status"] == "failed":
             db.mlreports.insert_one(report)
         print("ML report generated.")
         print(f"Status: {report['status']}")
         print(f"Report ID: {report['reportId']}")
-        print(f"Total readings: {report['dataset']['totalReadings']}")
+        print(f"Total daily reports: {report['dataset']['totalReadings']}")
         if report["status"] == "failed":
             print("Accuracy: N/A (training did not run)")
             print("Reason:")

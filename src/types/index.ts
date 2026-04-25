@@ -1,5 +1,7 @@
 export type CowStatus = "normal" | "warning" | "anomaly";
 
+export type DailyHealthStatus = "good" | "watch" | "bad";
+
 export type AnomalySeverity = "low" | "medium" | "high";
 
 export type AnomalyType =
@@ -54,4 +56,13 @@ export interface MLReportMetric {
   recall: number;
   f1Score: number;
   support: number;
+}
+
+export interface DailyHealthReportSummary {
+  cowId: string;
+  dateKey: string;
+  dailyStatus: DailyHealthStatus;
+  healthScore: number;
+  summary: string;
+  totalReadings: number;
 }

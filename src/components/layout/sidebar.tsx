@@ -6,6 +6,7 @@ import {
   Activity,
   AlertTriangle,
   BrainCircuit,
+  CalendarDays,
   LayoutDashboard,
   Rss,
 } from "lucide-react";
@@ -13,6 +14,7 @@ import {
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/cows", label: "Cows", icon: Rss },
+  { href: "/daily-reports", label: "Daily Reports", icon: CalendarDays },
   { href: "/anomalies", label: "Anomalies", icon: AlertTriangle },
   { href: "/ml-reports", label: "ML Reports", icon: BrainCircuit },
 ];

@@ -5,6 +5,7 @@ type ReadingLike = {
   timestamp: Date | string;
   temperatureC: number;
   activityIndex: number;
+  vibrationValue?: number;
   vibrationCount: number;
 };
 
@@ -15,41 +16,42 @@ export function detectAnomaly(reading: ReadingLike): ComputedAnomaly[] {
     events.push({
       anomalyType: "high_temperature",
       severity: "high",
-      message: "Body temperature is critically above expected range.",
+      message: "Skin temperature is above the device anomaly baseline.",
     });
   } else if (reading.temperatureC >= HEALTH_THRESHOLDS.temperature.warningHighC) {
     events.push({
       anomalyType: "high_temperature",
       severity: "medium",
-      message: "Body temperature is above warning threshold.",
+      message: "Skin temperature is elevated; monitor the trend.",
     });
   }
 
   if (reading.activityIndex <= HEALTH_THRESHOLDS.activity.anomalyLow) {
     events.push({
       anomalyType: "low_activity",
-      severity: "high",
-      message: "Activity level is critically low compared with the collar baseline.",
+      severity: "medium",
+      message: "Activity is very low for this sampling window.",
     });
   } else if (reading.activityIndex <= HEALTH_THRESHOLDS.activity.warningLow) {
     events.push({
       anomalyType: "low_activity",
-      severity: "medium",
+      severity: "low",
       message: "Activity level is lower than the collar baseline.",
     });
   }
 
-  if (reading.vibrationCount <= HEALTH_THRESHOLDS.vibration.anomalyLowCount) {
-    events.push({
-      anomalyType: "low_vibration",
-      severity: "high",
-      message: "No rumination-like vibration events were detected in this window.",
-    });
-  } else if (reading.vibrationCount <= HEALTH_THRESHOLDS.vibration.warningLowCount) {
+  const hasWeakRawVibration =
+    typeof reading.vibrationValue === "number" &&
+    reading.vibrationValue <= HEALTH_THRESHOLDS.vibration.warningLowValue;
+  const hasNoVibrationCount =
+    typeof reading.vibrationValue !== "number" &&
+    reading.vibrationCount <= HEALTH_THRESHOLDS.vibration.warningLowCount;
+
+  if (hasWeakRawVibration || hasNoVibrationCount) {
     events.push({
       anomalyType: "low_vibration",
       severity: "low",
-      message: "Rumination-like vibration count is lower than expected.",
+      message: "Raw vibration signal is weak; check rumination trend and sensor contact.",
     });
   }
 
@@ -60,10 +62,13 @@ export function detectAnomaly(reading: ReadingLike): ComputedAnomaly[] {
   const hasRuminationSignal = events.some(
     (event) => event.anomalyType === "low_vibration",
   );
+  const hasActivitySignal = events.some(
+    (event) => event.anomalyType === "low_activity",
+  );
 
   if (
     highRiskSignals.length >= 2 ||
-    (hasTemperatureSignal && hasRuminationSignal)
+    (hasTemperatureSignal && (hasRuminationSignal || hasActivitySignal))
   ) {
     events.push({
       anomalyType: "multi_signal_anomaly",

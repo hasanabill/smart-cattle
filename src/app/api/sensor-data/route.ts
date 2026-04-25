@@ -36,6 +36,7 @@ export async function POST(request: Request) {
       timestamp: readingBase.timestamp,
       temperatureC: readingBase.temperatureC,
       activityIndex: readingBase.activityIndex,
+      vibrationValue: readingBase.vibrationValue,
       vibrationCount: readingBase.vibrationCount,
     });
 
@@ -43,6 +44,7 @@ export async function POST(request: Request) {
       timestamp: readingBase.timestamp,
       temperatureC: readingBase.temperatureC,
       activityIndex: readingBase.activityIndex,
+      vibrationValue: readingBase.vibrationValue,
       vibrationCount: readingBase.vibrationCount,
     });
 
@@ -56,6 +58,7 @@ export async function POST(request: Request) {
       timestamp: readingBase.timestamp,
       temperatureC: readingBase.temperatureC,
       activityIndex: readingBase.activityIndex,
+      vibrationValue: readingBase.vibrationValue,
       vibrationCount: readingBase.vibrationCount,
     });
 

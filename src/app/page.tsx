@@ -17,7 +17,7 @@ export default async function HomePage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Real-time cattle health monitoring from wearable IoT collars.
+          Live sensor intake plus daily health analysis from wearable IoT collars.
         </p>
       </div>
 
@@ -48,6 +48,19 @@ export default async function HomePage() {
             </div>
           );
         })}
+      </div>
+
+      <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-4">
+        <p className="text-sm font-medium text-indigo-900">
+          Health status is decided from daily trends, not a single packet.
+        </p>
+        <p className="mt-1 text-sm text-indigo-700">
+          Let the collar collect readings throughout the day, then generate a{" "}
+          <a href="/daily-reports" className="font-semibold underline">
+            Daily Health Report
+          </a>{" "}
+          to classify the cow as good, watch, or bad.
+        </p>
       </div>
 
       {/* Stat cards */}
