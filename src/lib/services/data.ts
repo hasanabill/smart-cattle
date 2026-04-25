@@ -1,6 +1,11 @@
 import { API_DEFAULTS } from "@/lib/config/thresholds";
 import { connectToDatabase } from "@/lib/db";
-import { AnomalyEventModel, CowModel, SensorReadingModel } from "@/lib/models";
+import {
+  AnomalyEventModel,
+  CowModel,
+  MLReportModel,
+  SensorReadingModel,
+} from "@/lib/models";
 import { summarizeLatestHealth } from "@/lib/utils/anomaly";
 import type { DashboardSummary } from "@/types";
 
@@ -72,6 +77,15 @@ export async function getAnomalyList(limit = 100) {
   await connectToDatabase();
   return AnomalyEventModel.find({})
     .sort({ timestamp: -1 })
+    .limit(limit)
+    .lean()
+    .exec();
+}
+
+export async function getMLReports(limit = 20) {
+  await connectToDatabase();
+  return MLReportModel.find({})
+    .sort({ trainingCompletedAt: -1 })
     .limit(limit)
     .lean()
     .exec();

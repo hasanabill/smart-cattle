@@ -1,0 +1,346 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#include <WiFiClientSecure.h>
+#include <Wire.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <ArduinoJson.h>
+#include <math.h>
+
+// ===========================
+// WiFi + Cloud Config
+// ===========================
+const char* WIFI_SSID = "Tarnished";
+const char* WIFI_PASS = "1234567890";
+
+// HTTPS endpoint on Vercel
+const char* SERVER_URL = "https://smart-cattle.vercel.app/api/sensor-data";
+
+// Unique cow/collar ID
+const char* COW_ID = "COW_01";
+
+// ===========================
+// Pin Definitions
+// ===========================
+// Keep temp on D3 since that was the pin that worked for you
+#define ONE_WIRE_BUS D3
+#define VIBRATION_PIN A0
+
+// MPU6050 on the pins that worked for you
+#define SDA_PIN D2
+#define SCL_PIN D1
+
+// ===========================
+// Sensor Setup
+// ===========================
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature ds18b20(&oneWire);
+
+#define MPU_ADDR 0x68
+
+// ===========================
+// Timing
+// ===========================
+unsigned long lastSampleTime = 0;
+unsigned long lastSendTime = 0;
+
+const unsigned long SAMPLE_INTERVAL_MS = 200;
+const unsigned long SEND_INTERVAL_MS   = 30000;
+
+// ===========================
+// Feature Variables
+// ===========================
+long ax = 0, ay = 0, az = 0, gx = 0, gy = 0, gz = 0;
+
+float prevAccMag = 0.0;
+float activitySum = 0.0;
+int activitySamples = 0;
+
+int vibrationCount = 0;
+int latestVibration = 0;
+float latestTempC = -127.0;
+
+const int vibrationThreshold = 500;
+
+// ===========================
+// WiFi Helpers
+// ===========================
+void connectWiFi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+  Serial.print("Connecting to WiFi");
+  unsigned long startAttempt = millis();
+
+  while (WiFi.status() != WL_CONNECTED && (millis() - startAttempt < 20000)) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println();
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.print("Connected. IP: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("WiFi connect timeout.");
+  }
+}
+
+void ensureWiFi() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi disconnected. Reconnecting...");
+    WiFi.disconnect();
+    delay(100);
+    connectWiFi();
+  }
+}
+
+// ===========================
+// MPU6050 Init
+// ===========================
+bool initMPU6050() {
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x6B);
+  Wire.write(0);
+  return (Wire.endTransmission(true) == 0);
+}
+
+// ===========================
+// Read MPU6050 raw data
+// ===========================
+bool readMPU6050(long &axOut, long &ayOut, long &azOut, long &gxOut, long &gyOut, long &gzOut) {
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x3B);
+  if (Wire.endTransmission(false) != 0) {
+    return false;
+  }
+
+  // fixed warning here
+  Wire.requestFrom((uint8_t)MPU_ADDR, (size_t)14, (bool)true);
+  if (Wire.available() < 14) {
+    return false;
+  }
+
+  axOut = (Wire.read() << 8) | Wire.read();
+  ayOut = (Wire.read() << 8) | Wire.read();
+  azOut = (Wire.read() << 8) | Wire.read();
+
+  Wire.read(); Wire.read(); // skip MPU internal temp
+
+  gxOut = (Wire.read() << 8) | Wire.read();
+  gyOut = (Wire.read() << 8) | Wire.read();
+  gzOut = (Wire.read() << 8) | Wire.read();
+
+  return true;
+}
+
+// ===========================
+// Read Temperature
+// ===========================
+float readTemperatureC() {
+  ds18b20.requestTemperatures();
+  return ds18b20.getTempCByIndex(0);
+}
+
+// ===========================
+// Sample motion -> activity index
+// ===========================
+void sampleActivity() {
+  long lx, ly, lz, lgx, lgy, lgz;
+
+  if (readMPU6050(lx, ly, lz, lgx, lgy, lgz)) {
+    ax = lx;
+    ay = ly;
+    az = lz;
+    gx = lgx;
+    gy = lgy;
+    gz = lgz;
+
+    float axg = ax / 16384.0;
+    float ayg = ay / 16384.0;
+    float azg = az / 16384.0;
+
+    float accMag = sqrt(axg * axg + ayg * ayg + azg * azg);
+
+    if (activitySamples > 0) {
+      float delta = fabs(accMag - prevAccMag);
+      activitySum += delta;
+    }
+
+    prevAccMag = accMag;
+    activitySamples++;
+  }
+}
+
+// ===========================
+// Sample vibration
+// ===========================
+void sampleVibration() {
+  latestVibration = analogRead(VIBRATION_PIN);
+  if (latestVibration > vibrationThreshold) {
+    vibrationCount++;
+  }
+}
+
+// ===========================
+// Reset window
+// ===========================
+void resetWindow() {
+  activitySum = 0.0;
+  activitySamples = 0;
+  vibrationCount = 0;
+  latestVibration = 0;
+}
+
+// ===========================
+// Send data to cloud
+// ===========================
+void sendToCloud(float activityIndex, int vibrationValue, int vibrationCnt, float tempC) {
+  ensureWiFi();
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Skip send: WiFi unavailable.");
+    return;
+  }
+
+  WiFiClientSecure client;
+  client.setInsecure(); // for testing with HTTPS on ESP8266
+
+  HTTPClient http;
+
+  if (!http.begin(client, SERVER_URL)) {
+    Serial.println("HTTP begin failed.");
+    return;
+  }
+
+  http.setTimeout(8000);
+  http.addHeader("Content-Type", "application/json");
+
+  StaticJsonDocument<512> doc;
+  doc["cow_id"] = COW_ID;
+  doc["temperature_c"] = tempC;
+  doc["activity_index"] = activityIndex;
+  doc["vibration_value"] = vibrationValue;
+  doc["vibration_count"] = vibrationCnt;
+  doc["wifi_rssi"] = WiFi.RSSI();
+
+  doc["raw_accel_x"] = ax;
+  doc["raw_accel_y"] = ay;
+  doc["raw_accel_z"] = az;
+  doc["raw_gyro_x"] = gx;
+  doc["raw_gyro_y"] = gy;
+  doc["raw_gyro_z"] = gz;
+
+  doc["timestamp_ms"] = millis();
+
+  String payload;
+  serializeJson(doc, payload);
+
+  Serial.println("Sending JSON:");
+  Serial.println(payload);
+
+  int httpCode = http.POST(payload);
+
+  if (httpCode > 0) {
+    Serial.print("HTTP code: ");
+    Serial.println(httpCode);
+
+    String response = http.getString();
+    Serial.println("Server response:");
+    Serial.println(response);
+  } else {
+    Serial.print("POST failed: ");
+    Serial.println(http.errorToString(httpCode));
+  }
+
+  http.end();
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  Serial.println();
+  Serial.println("Smart Cattle Collar Node Starting...");
+
+  ds18b20.begin();
+
+  Wire.begin(SDA_PIN, SCL_PIN);
+  if (initMPU6050()) {
+    Serial.println("MPU6050 initialized");
+  } else {
+    Serial.println("MPU6050 not detected");
+  }
+
+  pinMode(VIBRATION_PIN, INPUT);
+
+  connectWiFi();
+
+  latestTempC = readTemperatureC();
+  resetWindow();
+}
+
+void loop() {
+  unsigned long now = millis();
+
+  if (now - lastSampleTime >= SAMPLE_INTERVAL_MS) {
+    lastSampleTime = now;
+
+    sampleActivity();
+    sampleVibration();
+
+    static int tempReadCounter = 0;
+    tempReadCounter++;
+    if (tempReadCounter >= 10) {
+      latestTempC = readTemperatureC();
+      tempReadCounter = 0;
+    }
+  }
+
+  if (now - lastSendTime >= SEND_INTERVAL_MS) {
+    lastSendTime = now;
+
+    float activityIndex = 0.0;
+    if (activitySamples > 1) {
+      activityIndex = activitySum / (activitySamples - 1);
+    }
+
+    Serial.println("------ WINDOW SUMMARY ------");
+
+    Serial.print("Temp C: ");
+    if (latestTempC == DEVICE_DISCONNECTED_C || latestTempC == -127.0) {
+      Serial.println("ERROR");
+    } else {
+      Serial.println(latestTempC);
+    }
+
+    Serial.print("Activity Index: ");
+    Serial.println(activityIndex, 4);
+
+    Serial.print("Latest Vibration: ");
+    Serial.println(latestVibration);
+
+    Serial.print("Vibration Count: ");
+    Serial.println(vibrationCount);
+
+    Serial.print("WiFi RSSI: ");
+    Serial.println(WiFi.RSSI());
+
+    Serial.print("Raw Accel: ");
+    Serial.print(ax); Serial.print(", ");
+    Serial.print(ay); Serial.print(", ");
+    Serial.println(az);
+
+    Serial.print("Raw Gyro : ");
+    Serial.print(gx); Serial.print(", ");
+    Serial.print(gy); Serial.print(", ");
+    Serial.println(gz);
+
+    Serial.println("----------------------------");
+
+    sendToCloud(activityIndex, latestVibration, vibrationCount, latestTempC);
+    resetWindow();
+  }
+
+  delay(1);
+}

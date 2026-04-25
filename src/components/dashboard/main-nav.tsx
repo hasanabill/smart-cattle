@@ -4,6 +4,7 @@ const links = [
   { href: "/", label: "Dashboard" },
   { href: "/cows", label: "Cows" },
   { href: "/anomalies", label: "Anomalies" },
+  { href: "/ml-reports", label: "ML Reports" },
 ];
 
 export function MainNav() {

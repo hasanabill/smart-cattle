@@ -29,13 +29,13 @@ export function detectAnomaly(reading: ReadingLike): ComputedAnomaly[] {
     events.push({
       anomalyType: "low_activity",
       severity: "high",
-      message: "Activity level is critically low.",
+      message: "Activity level is critically low compared with the collar baseline.",
     });
   } else if (reading.activityIndex <= HEALTH_THRESHOLDS.activity.warningLow) {
     events.push({
       anomalyType: "low_activity",
       severity: "medium",
-      message: "Activity level is below expected range.",
+      message: "Activity level is lower than the collar baseline.",
     });
   }
 
@@ -43,22 +43,33 @@ export function detectAnomaly(reading: ReadingLike): ComputedAnomaly[] {
     events.push({
       anomalyType: "low_vibration",
       severity: "high",
-      message: "Vibration count is very low, possible rumination issue.",
+      message: "No rumination-like vibration events were detected in this window.",
     });
   } else if (reading.vibrationCount <= HEALTH_THRESHOLDS.vibration.warningLowCount) {
     events.push({
       anomalyType: "low_vibration",
       severity: "low",
-      message: "Vibration trend is lower than normal.",
+      message: "Rumination-like vibration count is lower than expected.",
     });
   }
 
   const highRiskSignals = events.filter((event) => event.severity !== "low");
-  if (highRiskSignals.length >= 2) {
+  const hasTemperatureSignal = events.some(
+    (event) => event.anomalyType === "high_temperature",
+  );
+  const hasRuminationSignal = events.some(
+    (event) => event.anomalyType === "low_vibration",
+  );
+
+  if (
+    highRiskSignals.length >= 2 ||
+    (hasTemperatureSignal && hasRuminationSignal)
+  ) {
     events.push({
       anomalyType: "multi_signal_anomaly",
       severity: "high",
-      message: "Multiple abnormal signals detected in the same interval.",
+      message:
+        "Temperature and behavior signals are abnormal in the same interval.",
     });
   }
 

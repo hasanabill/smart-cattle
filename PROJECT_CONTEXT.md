@@ -24,11 +24,11 @@
 - `GET /api/anomalies` anomaly records.
 - `GET /api/dashboard/summary` overview counts.
 
-## ML Integration Readiness
-- `src/lib/services/prediction.ts` provides `predictHealthRisk(reading)`.
-- Future plug-in points:
-  - Python service endpoint call from Next.js.
-  - ONNX Runtime in Node.js API layer.
+## Local ML Reporting
+- ML is not hosted in cloud for this thesis demo.
+- `ml-local/train_report.py` runs locally, reads MongoDB sensor readings, trains Random Forest, and writes a report to `mlreports`.
+- Website displays generated reports at `/ml-reports`.
+- `src/lib/services/prediction.ts` remains as a future live-inference abstraction.
 
 ## Config
 - MongoDB env vars in `.env.local`.

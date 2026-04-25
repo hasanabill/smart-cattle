@@ -45,3 +45,13 @@ export interface TimeSeriesPoint {
   activityIndex: number;
   vibrationCount: number;
 }
+
+export type MLReportStatus = "completed" | "failed";
+
+export interface MLReportMetric {
+  label: string;
+  precision: number;
+  recall: number;
+  f1Score: number;
+  support: number;
+}

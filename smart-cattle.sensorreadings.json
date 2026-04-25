@@ -1,0 +1,168 @@
+[{
+  "_id": {
+    "$oid": "69e89d55f6e72338b8fdd22a"
+  },
+  "cowId": "COW_01",
+  "timestamp": {
+    "$date": "2026-04-22T10:04:38.565Z"
+  },
+  "temperatureC": 26,
+  "activityIndex": 0.006721,
+  "vibrationValue": 2,
+  "vibrationCount": 0,
+  "wifiRssi": -60,
+  "rawAccelX": 58952,
+  "rawAccelY": 51108,
+  "rawAccelZ": 64788,
+  "rawGyroX": 65287,
+  "rawGyroY": 535,
+  "rawGyroZ": 65421,
+  "derivedStatus": "anomaly",
+  "processingNotes": [],
+  "prediction": {
+    "label": "anomaly",
+    "riskScore": 0.9,
+    "source": "rule_based",
+    "modelVersion": "v0-rule"
+  },
+  "anomalyEventIds": [
+    {
+      "$oid": "69e89d55f6e72338b8fdd22b"
+    },
+    {
+      "$oid": "69e89d55f6e72338b8fdd22c"
+    },
+    {
+      "$oid": "69e89d55f6e72338b8fdd22d"
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-04-22T10:05:09.047Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "69e89d72f6e72338b8fdd22e"
+  },
+  "cowId": "COW_01",
+  "timestamp": {
+    "$date": "2026-04-22T10:04:38.375Z"
+  },
+  "temperatureC": 25.875,
+  "activityIndex": 0.002714,
+  "vibrationValue": 2,
+  "vibrationCount": 0,
+  "wifiRssi": -59,
+  "rawAccelX": 59036,
+  "rawAccelY": 51220,
+  "rawAccelZ": 64688,
+  "rawGyroX": 65319,
+  "rawGyroY": 508,
+  "rawGyroZ": 65393,
+  "derivedStatus": "anomaly",
+  "processingNotes": [],
+  "prediction": {
+    "label": "anomaly",
+    "riskScore": 0.9,
+    "source": "rule_based",
+    "modelVersion": "v0-rule"
+  },
+  "anomalyEventIds": [
+    {
+      "$oid": "69e89d73f6e72338b8fdd22f"
+    },
+    {
+      "$oid": "69e89d73f6e72338b8fdd230"
+    },
+    {
+      "$oid": "69e89d73f6e72338b8fdd231"
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-04-22T10:05:38.854Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "69e89d91186732254c75f957"
+  },
+  "cowId": "COW_01",
+  "timestamp": {
+    "$date": "2026-04-22T10:04:38.929Z"
+  },
+  "temperatureC": 25.8125,
+  "activityIndex": 0.003274,
+  "vibrationValue": 10,
+  "vibrationCount": 0,
+  "wifiRssi": -55,
+  "rawAccelX": 58824,
+  "rawAccelY": 51196,
+  "rawAccelZ": 64724,
+  "rawGyroX": 65264,
+  "rawGyroY": 542,
+  "rawGyroZ": 65401,
+  "derivedStatus": "anomaly",
+  "processingNotes": [],
+  "prediction": {
+    "label": "anomaly",
+    "riskScore": 0.9,
+    "source": "rule_based",
+    "modelVersion": "v0-rule"
+  },
+  "anomalyEventIds": [
+    {
+      "$oid": "69e89d91186732254c75f958"
+    },
+    {
+      "$oid": "69e89d91186732254c75f959"
+    },
+    {
+      "$oid": "69e89d91186732254c75f95a"
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-04-22T10:06:09.408Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "69e89db06c32bdf7f0c78fd1"
+  },
+  "cowId": "COW_01",
+  "timestamp": {
+    "$date": "2026-04-22T10:04:39.392Z"
+  },
+  "temperatureC": 25.75,
+  "activityIndex": 0.022633,
+  "vibrationValue": 10,
+  "vibrationCount": 0,
+  "wifiRssi": -66,
+  "rawAccelX": 57616,
+  "rawAccelY": 51964,
+  "rawAccelZ": 64116,
+  "rawGyroX": 65301,
+  "rawGyroY": 534,
+  "rawGyroZ": 65361,
+  "derivedStatus": "anomaly",
+  "processingNotes": [],
+  "prediction": {
+    "label": "anomaly",
+    "riskScore": 0.9,
+    "source": "rule_based",
+    "modelVersion": "v0-rule"
+  },
+  "anomalyEventIds": [
+    {
+      "$oid": "69e89db06c32bdf7f0c78fd2"
+    },
+    {
+      "$oid": "69e89db06c32bdf7f0c78fd3"
+    },
+    {
+      "$oid": "69e89db06c32bdf7f0c78fd4"
+    }
+  ],
+  "createdAt": {
+    "$date": "2026-04-22T10:06:40.133Z"
+  }
+}]

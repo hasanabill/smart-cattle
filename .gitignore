@@ -42,3 +42,12 @@ next-env.d.ts
 
 # project-specific generated payloads
 /docs
+
+# local ML artifacts
+ml-local/.env
+ml-local/.venv/
+ml-local/models/
+ml-local/__pycache__/
+
+# generated synthetic datasets
+synthetic-data/
