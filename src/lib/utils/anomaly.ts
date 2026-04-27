@@ -43,11 +43,8 @@ export function detectAnomaly(reading: ReadingLike): ComputedAnomaly[] {
   const hasWeakRawVibration =
     typeof reading.vibrationValue === "number" &&
     reading.vibrationValue <= HEALTH_THRESHOLDS.vibration.warningLowValue;
-  const hasNoVibrationCount =
-    typeof reading.vibrationValue !== "number" &&
-    reading.vibrationCount <= HEALTH_THRESHOLDS.vibration.warningLowCount;
 
-  if (hasWeakRawVibration || hasNoVibrationCount) {
+  if (hasWeakRawVibration) {
     events.push({
       anomalyType: "low_vibration",
       severity: "low",
@@ -105,7 +102,7 @@ export function summarizeLatestHealth(readings: ReadingLike[]) {
     (acc, curr) => {
       acc.temperature += curr.temperatureC;
       acc.activity += curr.activityIndex;
-      acc.vibration += curr.vibrationCount;
+      acc.vibration += curr.vibrationValue ?? 0;
       return acc;
     },
     { temperature: 0, activity: 0, vibration: 0 },
@@ -124,7 +121,7 @@ export function groupReadingsForChart(readings: ReadingLike[]): TimeSeriesPoint[
       timestamp: new Date(reading.timestamp).toISOString(),
       temperatureC: reading.temperatureC,
       activityIndex: reading.activityIndex,
-      vibrationValue: reading.vibrationValue,
+      vibrationValue: reading.vibrationValue ?? 0,
     }))
     .sort(
       (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),

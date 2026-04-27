@@ -10,8 +10,6 @@ export const HEALTH_THRESHOLDS = {
   },
   vibration: {
     warningLowValue: 1,
-    warningLowCount: 0,
-    anomalyLowCount: 0,
   },
 } as const;
 

@@ -45,7 +45,7 @@ export interface TimeSeriesPoint {
   timestamp: string;
   temperatureC: number;
   activityIndex: number;
-  vibrationCount: number;
+  vibrationValue: number;
 }
 
 export type MLReportStatus = "completed" | "failed";
