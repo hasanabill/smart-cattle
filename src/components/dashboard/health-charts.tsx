@@ -162,7 +162,7 @@ export function HealthCharts({ points }: Props) {
               />
               <Line
                 type="monotone"
-                dataKey="vibrationCount"
+                dataKey="vibrationValue"
                 name="Vibration"
                 stroke="#10b981"
                 strokeWidth={2}

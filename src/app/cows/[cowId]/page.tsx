@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { ArrowLeft, Activity, Thermometer, Vibrate, BarChart3 } from "lucide-react";
+import {
+  ArrowLeft,
+  Activity,
+  Thermometer,
+  Vibrate,
+  BarChart3,
+} from "lucide-react";
 import { HealthCharts } from "@/components/dashboard/health-charts";
 import { SeverityBadge } from "@/components/dashboard/severity-badge";
 import { StatusBadge } from "@/components/dashboard/status-badge";
@@ -40,7 +46,9 @@ export default async function CowDetailPage({ params }: Params) {
   const statCards = [
     {
       label: "Latest Temperature",
-      value: latestReading ? `${latestReading.temperatureC.toFixed(2)} °C` : "—",
+      value: latestReading
+        ? `${latestReading.temperatureC.toFixed(2)} °C`
+        : "—",
       icon: Thermometer,
       iconBg: "bg-rose-100",
       iconColor: "text-rose-600",
@@ -53,8 +61,8 @@ export default async function CowDetailPage({ params }: Params) {
       iconColor: "text-indigo-600",
     },
     {
-      label: "Vibration Count",
-      value: latestReading ? String(latestReading.vibrationCount) : "—",
+      label: "Vibration Value",
+      value: latestReading ? String(latestReading.vibrationValue) : "—",
       icon: Vibrate,
       iconBg: "bg-emerald-100",
       iconColor: "text-emerald-600",
@@ -135,8 +143,8 @@ export default async function CowDetailPage({ params }: Params) {
                 event.severity === "high"
                   ? "border-l-4 border-l-rose-400"
                   : event.severity === "medium"
-                    ? "border-l-4 border-l-amber-400"
-                    : "border-l-4 border-l-sky-400"
+                  ? "border-l-4 border-l-amber-400"
+                  : "border-l-4 border-l-sky-400"
               }`}
             >
               <div className="flex-1">

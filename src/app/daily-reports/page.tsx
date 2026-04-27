@@ -1,6 +1,8 @@
 import { CalendarDays, ClipboardList, HeartPulse, Thermometer } from "lucide-react";
+import { GenerateDailyReportsControl } from "@/components/daily-reports/generate-daily-reports-control";
 import { DailyStatusBadge } from "@/components/dashboard/daily-status-badge";
 import { getDailyHealthReports } from "@/lib/services/data";
+import { getDateKey } from "@/lib/utils/daily-health";
 
 export const dynamic = "force-dynamic";
 
@@ -32,12 +34,24 @@ export default async function DailyReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Daily Health Reports</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          End-of-day analysis from all stored sensor readings. A single packet is
-          treated as observation, not diagnosis.
-        </p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Daily Health Reports</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            End-of-day analysis from all stored sensor readings. A single packet is
+            treated as observation, not diagnosis.
+          </p>
+        </div>
+        <div className="w-full min-w-0 max-w-md rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 lg:max-w-sm">
+          <p className="text-xs font-medium text-slate-600">Build from readings</p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            One row per cow for the selected UTC day, from measurements already in the
+            database.
+          </p>
+          <div className="mt-3">
+            <GenerateDailyReportsControl defaultDateKey={getDateKey()} />
+          </div>
+        </div>
       </div>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -99,7 +113,8 @@ export default async function DailyReportsPage() {
         <div className="border-b border-slate-100 px-5 py-4">
           <h2 className="font-semibold text-slate-900">Report History</h2>
           <p className="mt-0.5 text-xs text-slate-500">
-            Generate reports with `POST /api/daily-reports`.
+            Use the form above, or <code className="rounded bg-slate-100 px-1">POST /api/daily-reports</code>{" "}
+            with a <code className="rounded bg-slate-100 px-1">date</code> (optional; defaults to today UTC).
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -147,11 +162,9 @@ export default async function DailyReportsPage() {
               {reports.length === 0 ? (
                 <tr>
                   <td className="px-5 py-12 text-center text-slate-400" colSpan={7}>
-                    No daily reports yet. Send readings for a day, then call{" "}
-                    <code className="rounded bg-slate-100 px-1 text-xs">
-                      POST /api/daily-reports
-                    </code>
-                    .
+                    No daily reports yet. Ingest sensor data for a UTC day, then use{" "}
+                    <strong>Generate report</strong> at the top of this page (or the API
+                    call below).
                   </td>
                 </tr>
               ) : null}

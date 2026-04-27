@@ -124,7 +124,7 @@ export function groupReadingsForChart(readings: ReadingLike[]): TimeSeriesPoint[
       timestamp: new Date(reading.timestamp).toISOString(),
       temperatureC: reading.temperatureC,
       activityIndex: reading.activityIndex,
-      vibrationCount: reading.vibrationCount,
+      vibrationValue: reading.vibrationValue,
     }))
     .sort(
       (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
